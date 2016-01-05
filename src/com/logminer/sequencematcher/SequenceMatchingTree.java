@@ -13,6 +13,7 @@ package com.logminer.sequencematcher;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
@@ -129,7 +130,7 @@ class SequenceMatchingTree {
         Integer j;
         for (j = 0; j < seqSize; j++) {
 
-            if (!existingTree[j].getEvent().equals(newSeq[j])) {
+            if ((j>=existingTree.length-1) || !existingTree[j].getEvent().equals(newSeq[j])) {// length-1 because we want to avoid the matching of count at the end
                 break;
             }
         }
@@ -312,14 +313,30 @@ class SequenceMatchingTree {
      *            A map containing one tree of events for every name
      * @param nameToId
      *            NameToIDMapper
+     * @param isSorted
+     * 	         true: To sort the sequence by count. Note sorting consumes more memory.           
      */
-    public void printSequence(ILogOutStream outStream, HashMap<Integer, Event[]> sysCallSequences, NameToIDMapper nameToId) {
+    public void printSequence(ILogOutStream outStream, HashMap<Integer, Event[]> sysCallSequences, NameToIDMapper nameToId, Boolean isSorted) {
 
+    	TreeMap<Integer,String> sortSeqTree=new TreeMap<>();
         for (Map.Entry<Integer, Event[]> nodes : sysCallSequences.entrySet()) {
-
-            printRecursive(nodes.getValue(), "", outStream, nameToId); //$NON-NLS-1$
+        	if (!isSorted)
+        		printRecursive(nodes.getValue(), "", outStream, nameToId,null); //$NON-NLS-1$
+        	else
+        		printRecursive(nodes.getValue(), "", outStream, nameToId,sortSeqTree); //$NON-NLS-1$;
         }
-
+        
+        // Printing sroted Tree
+        if (isSorted=true){
+		        
+		        for (Map.Entry<Integer,String> seq:sortSeqTree.descendingMap().entrySet()){
+		        	outStream.addNewLine();
+		        	outStream.addOutputEvent("Count= " + seq.getKey().toString());
+		        	outStream.addNewLine();
+		        	outStream.addOutputEvent(seq.getValue());
+		        }
+		        sortSeqTree.clear();
+        }
     }
 
     /**
@@ -334,8 +351,10 @@ class SequenceMatchingTree {
      *            An object to display output
      * @param nameToId
      *            Name to id mapper
+     * @param sortedSeqTree
+     * 		      A tree Map to store sorted sequences           
      */
-    private void printRecursive(Event[] nodes, String prefix, ILogOutStream outStream, NameToIDMapper nameToId) {
+    private void printRecursive(Event[] nodes, String prefix, ILogOutStream outStream, NameToIDMapper nameToId,  TreeMap<Integer,String> sortSeqTree) {
 
         // Boolean isPrefixPrinted=false;
         String thePrefix = prefix;
@@ -363,20 +382,38 @@ class SequenceMatchingTree {
                                     // keep them
 
                 for (int i = 0; i < branches.size(); i++) {
-                    printRecursive(branches.get(i), thePrefix, outStream, nameToId);
+                	if (sortSeqTree!=null)
+                		printRecursive(branches.get(i), thePrefix, outStream, nameToId,sortSeqTree);
+                    else
+                		printRecursive(branches.get(i), thePrefix, outStream, nameToId,null);
                 }
             } else {
 
                 // Print only when we reach a leaf of a branch
                 if (nodeCount == nodes.length - 1) {
-                    outStream.addOutputEvent(thePrefix);
+                   if (sortSeqTree!=null){
+	                		String seq=sortSeqTree.get(nodes[nodeCount].getEvent()); // get the count of sequence, which is the last event 
+	                		if (seq==null)
+	                			sortSeqTree.put(nodes[nodeCount].getEvent(), thePrefix);
+	                		else{
+	                			seq=seq+"\n"+thePrefix;
+	                			sortSeqTree.put(nodes[nodeCount].getEvent(), seq);
+	                		}
+                	}
+                	else
+                		outStream.addOutputEvent(thePrefix);
+                	
                 }
 
-                // console.printText(nodes[nodeCount].event+"-");
+               
             }
         }
-        outStream.addNewLine();
+        if (sortSeqTree==null)
+        	outStream.addNewLine();
     }
+    
+    
+    
 
     /**
      * Searches a matching sequence in the tree

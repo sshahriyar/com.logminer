@@ -1,6 +1,10 @@
 package com.logminer.main;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
 
 import com.logminer.exception.TotalADSDBMSException;
 import com.logminer.exception.TotalADSGeneralException;
@@ -14,28 +18,61 @@ import com.logminer.reader.adlogs.TextLineTraceReader;
 import com.logminer.sequencematcher.SequenceMatching;
 
 public class LogMiner {
-
 	
-	public static void minePatterns(){
+	// Inner class
+	private class OutputClass implements ILogOutObserver {			
+		private BufferedWriter outFile;
+		/**
+		 * Constructor
+		 * @throws IOException 
+		 */
+		public  OutputClass() throws IOException{
 		
-		LogOutStream outPut= new LogOutStream();
-	 	outPut.addObserver(new ILogOutObserver() {			
-					@Override
-					public void updateOutput(String message) {
-						System.out.print(message);
-						
-					}
-		});
+				outFile=new BufferedWriter(new FileWriter("/home/t909801/logs/output.txt"));
+		
+		}
+		
+		@Override
+		public void updateOutput(String message) {
+			try {
+				outFile.write(message);
+				outFile.flush();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			
+		}
+		
+		public void dispose() throws IOException{
+			
+				outFile.close();
+			
+		}
+	}
+	
+	/**
+	 * 
+	 */
+	public  void minePatterns(){
+		
+		
 		
 		ILogTypeReader logFile= new AdLogReader();
-		try(ILogIterator logIterator= logFile.getLogIterator( new File("/home/t909801/logs/ad-auth-xml.xml"))){
-		   
+		try(ILogIterator logIterator= logFile.getLogIterator( new File("/home/t909801/logs/ad-auth-log-dec4-1month.xml"))){
+		
+			OutputClass out=new OutputClass();
+			LogOutStream outPut= new LogOutStream();
+		 	outPut.addObserver(out);
+		
+		 	//try(ILogIterator logIterator= logFile.getLogIterator( new File("/home/t909801/logs/temp.txt"))){ 
 			        Boolean isLastTrace=true;
 					SequenceMatching seq= new SequenceMatching();
-					seq.adjustSettings(2, 0);
-					seq.train(logIterator, isLastTrace, "", null, outPut);
+					seq.adjustSettings(10, 0);
+				//	seq.train(logIterator, isLastTrace, "", null, outPut);
+					seq.minePatternsByCommonEvent(logIterator, isLastTrace, "", null, outPut);
+					out.dispose();
 		
-		} catch (TotalADSReaderException | TotalADSGeneralException | TotalADSDBMSException ex){
+		} catch (TotalADSReaderException | TotalADSGeneralException | TotalADSDBMSException | IOException ex){
 			System.out.println(ex.getMessage());
 			
 		}
@@ -44,7 +81,8 @@ public class LogMiner {
 	
 	
 	public static void main(String []args){
-		LogMiner.minePatterns();
+		LogMiner log=new LogMiner();
+		log.minePatterns();
 	}
 	
 }

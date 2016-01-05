@@ -71,7 +71,7 @@ public class AdLogReader implements ILogTypeReader {
 		@Override
 		public boolean advance() throws TotalADSReaderException  {
 		   boolean isAdvance=false;
-		   boolean isField=false, isText=false, isResult=false;
+		   boolean isField=false, isText=false, isResult=false, isPredicate=false;
 		   fEvent="";
 		   try {
 			   while (xmlStrReader.hasNext()){
@@ -83,22 +83,43 @@ public class AdLogReader implements ILogTypeReader {
 				   			
 				   			 if (xmlStrReader.getLocalName().equals("field")){ //look for a  field element
 				   				String att=xmlStrReader.getAttributeValue(0);
-				   			    if (att!=null && (att.equalsIgnoreCase("OBJECT") || att.equalsIgnoreCase("SUBJECT")) ){
-				   	        	    //att.equalsIgnoreCase("TS_CREATED"))){
-				   	        	 		isField=true;
+				   			    if (att!=null){
+				   			    	if (att.equalsIgnoreCase("OBJECT") || att.equalsIgnoreCase("SUBJECT")) {
+				   			     		isField=true;
 				   	        	 		if (!fEvent.isEmpty())
 				   	        	 			fEvent+=":";
-				   	        	 		
+				   			    	}
+				   			    	if (att.equalsIgnoreCase("PREDICATE"))
+				   			    		isPredicate=true;
 				   			    }
 				   	        }
-				   			else if (xmlStrReader.getLocalName().equals("text") && isField){ //look for a  field element
-				   				 		isText=true; isField=false;
+				   			else if (xmlStrReader.getLocalName().equals("text") &&  (isField || isPredicate)){ //look for a  field element
+				   				 		isText=true;
 				   	        }
 				   		break;
 				   		case XMLStreamConstants.CHARACTERS:
-		                    if(isText){
-		                       fEvent+=xmlStrReader.getText();
+				   			if(isText && isPredicate){
+		                    	String pred=""; 
+				   				switch (xmlStrReader.getText()){
+				   				case "SUCCESSFUL_LOGIN":
+				   					pred="(I)";
+				   				break;
+				   				case "SUCCESSFUL_LOGOUT":
+				   					pred="(O)";
+				   				break;
+				   				case "FAILED_LOGIN":
+				   					pred="(F)";
+				   				break;
+				   				}
+				   				
+				   				fEvent+=pred;
+				   				isText=false;
+		                        isPredicate=false;
+		                    }
+				   			else if(isText && isField){
+		                    	fEvent+=xmlStrReader.getText();
 		                        isText=false;
+		                        isField=false;
 		                    }
 		                break;
 				   		case XMLStreamConstants.END_ELEMENT:

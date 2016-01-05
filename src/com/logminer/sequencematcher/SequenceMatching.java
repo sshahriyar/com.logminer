@@ -10,6 +10,7 @@
  **********************************************************************************************/
 package com.logminer.sequencematcher;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
@@ -180,7 +181,7 @@ public class SequenceMatching {
             outStream.addOutputEvent(Messages.SlidingWindow_UniqueMsg);
             outStream.addNewLine();
             if (fEventSequences.size() > 0) {
-                fTreeTransformer.printSequence(outStream, fEventSequences, fNameToID);
+                fTreeTransformer.printSequence(outStream, fEventSequences, fNameToID,false);
             } else{
                 String err=NLS.bind(Messages.SlidingWindow_NoSeqLength,fMaxWin );
                 outStream.addOutputEvent(err);
@@ -197,6 +198,102 @@ public class SequenceMatching {
     }
 
 
+    
+    
+    public void minePatternsByCommonEvent(ILogIterator trace, Boolean isLastTrace, String database, 
+    		IDataAccessObject dataAccessObject, ILogOutStream outStream) throws TotalADSGeneralException, TotalADSDBMSException, TotalADSReaderException {
+
+    	//if (trace==null || isLastTrace==null || database==null|| dataAccessObject==null|| outStream==null) {
+        //    throw new TotalADSGeneralException(Messages.SlidingWindow_NoNull);
+        //}
+
+
+      /*  if (!fIsintialize) {
+            fValidationTraceCount = 0;
+            fValidationAnomalies = 0;
+            initialize(dataAccessObject, database);
+            fIsintialize = true;
+            fNameToID.loadMap(dataAccessObject, database);
+
+        }*/
+
+        outStream.addOutputEvent(Messages.SlidingWindow_StartMsg);
+        outStream.addNewLine();
+
+        int winWidth = 0;
+        HashMap<Integer,LinkedList<Integer>> commonEvntMap=new HashMap<>();
+        //LinkedList<Integer> newSequence = new LinkedList<>();
+        String events = null;
+
+        while (trace.advance()) {
+            events = trace.getCurrentEvent();
+            String []event=events.split(":");
+           // System.out.println(events);
+          
+            if (event.length>1){
+			            Integer key=fNameToID.getId(event[1]);
+			            Integer val=fNameToID.getId(event[0]);
+			            
+			            LinkedList<Integer> newSequence=commonEvntMap.get(key);
+			            if (newSequence!=null){
+			            	newSequence.add(val);
+			            	commonEvntMap.put(key,newSequence);
+			            }else{
+			            	newSequence = new LinkedList<>();
+			            	newSequence.add(val);
+			            	commonEvntMap.put(key,newSequence);
+			            }
+			            
+			          //}
+	            // }
+			            
+			            winWidth++;
+			
+			            if (winWidth >= fMaxWin) {
+			
+			                winWidth=0;
+			                for (Map.Entry<Integer, LinkedList<Integer>> seqByGroup:commonEvntMap.entrySet()){
+			                	LinkedList<Integer> sequence =seqByGroup.getValue();
+			                	
+			                	sequence.addFirst(seqByGroup.getKey());
+			                	
+			                	Integer[] seq = new Integer[sequence.size()];// add 1 for the group name;i.e., key
+			                    seq = sequence.toArray(seq);
+			                    //if (Arrays.toString(seq).equals("[8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]")){
+			                    //	winWidth=0;
+			                    //}
+			                  //	System.out.println(Arrays.toString(seq));
+			                    fTreeTransformer.searchAndAddSequence(seq, fEventSequences, outStream);
+			                    
+			
+			                }
+			                commonEvntMap.clear();
+			                
+			            }
+           }
+       }
+        if (isLastTrace) {
+            // Saving events tree in database
+            outStream.addOutputEvent(Messages.SlidingWindow_UniqueMsg);
+            outStream.addNewLine();
+            if (fEventSequences.size() > 0) {
+                fTreeTransformer.printSequence(outStream, fEventSequences, fNameToID,true);
+            } else{
+                String err=NLS.bind(Messages.SlidingWindow_NoSeqLength,fMaxWin );
+                outStream.addOutputEvent(err);
+                outStream.addNewLine();
+                throw new TotalADSGeneralException(err);
+
+            }
+
+            //fTreeTransformer.saveinDatabase(outStream, database, dataAccessObject, fSysCallSequences);
+            fIsintialize = false;
+          //  fNameToID.saveMap(dataAccessObject, database);
+        }
+
+    }
+
+    
     /*
      * (non-Javadoc)
      *
