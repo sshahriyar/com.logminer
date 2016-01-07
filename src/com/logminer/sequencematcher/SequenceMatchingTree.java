@@ -84,7 +84,7 @@ class SequenceMatchingTree {
                                                                                   // this
                                                                                   // node/sequence
 
-            if (isFound == false) {// if not match is found then add on 0 branch
+            if (isFound == false) {// if no match is found then add on 0 branch
                                    // because only top event matches
                 eventSequence[0].setBranches(new ArrayList<Event[]>());
                 Event[] newBranchSeq = new Event[seqSize + 1];
@@ -400,9 +400,11 @@ class SequenceMatchingTree {
 	                			sortSeqTree.put(nodes[nodeCount].getEvent(), seq);
 	                		}
                 	}
-                	else
+                	else{
+                		 //if (thePrefix.contains("T906537"))
+		                  	//    System.out.println(thePrefix);
                 		outStream.addOutputEvent(thePrefix);
-                	
+                	}
                 }
 
                

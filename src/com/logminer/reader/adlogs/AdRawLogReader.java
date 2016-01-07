@@ -41,7 +41,7 @@ import com.logminer.reader.ILogTypeReader;
  * @author <p> Syed Shariyar Murtaza justsshary@hotmail.com </p>
  *
  */
-public class AdLogReader implements ILogTypeReader {
+public class AdRawLogReader implements ILogTypeReader {
 	//---------------------------------------------------------------------------
 	//Inner class: Implements the iterator to iterate through the text file
 	//---------------------------------------------------------------------------
@@ -71,7 +71,7 @@ public class AdLogReader implements ILogTypeReader {
 		@Override
 		public boolean advance() throws TotalADSReaderException  {
 		   boolean isAdvance=false;
-		   boolean isField=false, isText=false, isResult=false, isPredicate=false;
+		   boolean isField=false, isText=false, isResult=false;
 		   fEvent="";
 		   try {
 			   while (xmlStrReader.hasNext()){
@@ -84,39 +84,21 @@ public class AdLogReader implements ILogTypeReader {
 				   			 if (xmlStrReader.getLocalName().equals("field")){ //look for a  field element
 				   				String att=xmlStrReader.getAttributeValue(0);
 				   			    if (att!=null){
-				   			    	if (att.equalsIgnoreCase("OBJECT") || att.equalsIgnoreCase("SUBJECT")) {
+				   			    	if (att.equalsIgnoreCase("eid") || att.equalsIgnoreCase("account")) {
 				   			     		isField=true;
 				   	        	 		if (!fEvent.isEmpty())
 				   	        	 			fEvent+=":";
 				   			    	}
-				   			    	if (att.equalsIgnoreCase("PREDICATE"))
-				   			    		isPredicate=true;
+				   			    	
 				   			    }
 				   	        }
-				   			else if (xmlStrReader.getLocalName().equals("text") &&  (isField || isPredicate)){ //look for a  field element
+				   			else if (xmlStrReader.getLocalName().equals("text") &&  (isField)){ //look for a  field element
 				   				 		isText=true;
 				   	        }
 				   		break;
 				   		case XMLStreamConstants.CHARACTERS:
-				   			if(isText && isPredicate){
-		                    	String pred=""; 
-				   				switch (xmlStrReader.getText()){
-				   				case "SUCCESSFUL_LOGIN":
-				   					pred="(I)";
-				   				break;
-				   				case "SUCCESSFUL_LOGOUT":
-				   					pred="(O)";
-				   				break;
-				   				case "FAILED_LOGIN":
-				   					pred="(F)";
-				   				break;
-				   				}
-				   				
-				   				fEvent+=pred;
-				   				isText=false;
-		                        isPredicate=false;
-		                    }
-				   			else if(isText && isField){
+				   			
+				   			 if(isText && isField){
 		                    	fEvent+=xmlStrReader.getText();
 		                        isText=false;
 		                        isField=false;
@@ -183,13 +165,13 @@ public class AdLogReader implements ILogTypeReader {
 	/**
 	 * Constructor
 	 */
-	public AdLogReader() {
+	public AdRawLogReader() {
 
 	}
 
 	@Override
 	public ILogTypeReader createInstance(){
-		return new AdLogReader();
+		return new AdRawLogReader();
 	}
 
 

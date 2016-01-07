@@ -198,10 +198,21 @@ public class SequenceMatching {
     }
 
 
-    
+    /**
+     * Mine Temporal patterns by grouping events by a common event. The common event should be the second one after : sign
+     * @param trace
+     * @param isLastTrace
+     * @param database
+     * @param dataAccessObject
+     * @param outStream
+     * @param isSorted
+     * @throws TotalADSGeneralException
+     * @throws TotalADSDBMSException
+     * @throws TotalADSReaderException
+     */
     
     public void minePatternsByCommonEvent(ILogIterator trace, Boolean isLastTrace, String database, 
-    		IDataAccessObject dataAccessObject, ILogOutStream outStream) throws TotalADSGeneralException, TotalADSDBMSException, TotalADSReaderException {
+    		IDataAccessObject dataAccessObject, ILogOutStream outStream, Boolean isSorted) throws TotalADSGeneralException, TotalADSDBMSException, TotalADSReaderException {
 
     	//if (trace==null || isLastTrace==null || database==null|| dataAccessObject==null|| outStream==null) {
         //    throw new TotalADSGeneralException(Messages.SlidingWindow_NoNull);
@@ -227,13 +238,20 @@ public class SequenceMatching {
 
         while (trace.advance()) {
             events = trace.getCurrentEvent();
+            
             String []event=events.split(":");
-           // System.out.println(events);
-          
+            
+            
             if (event.length>1){
 			            Integer key=fNameToID.getId(event[1]);
 			            Integer val=fNameToID.getId(event[0]);
-			            
+			            System.out.println(event[1]);
+			           // if (events.contains("KanaMail@CORP.ADS") ){
+			            //	System.out.println(events + " "+key + " "+val);//5
+			            //}
+			           // if ( events.contains("T906537")){
+			           // 	System.out.println(events + " "+key + " "+val);//14728
+			           // }
 			            LinkedList<Integer> newSequence=commonEvntMap.get(key);
 			            if (newSequence!=null){
 			            	newSequence.add(val);
@@ -244,40 +262,61 @@ public class SequenceMatching {
 			            	commonEvntMap.put(key,newSequence);
 			            }
 			            
-			          //}
-	            // }
+			          }
+	             }
 			            
-			            winWidth++;
+			            winWidth=fMaxWin;
 			
 			            if (winWidth >= fMaxWin) {
 			
-			                winWidth=0;
+			                
 			                for (Map.Entry<Integer, LinkedList<Integer>> seqByGroup:commonEvntMap.entrySet()){
+			                	winWidth=0;
 			                	LinkedList<Integer> sequence =seqByGroup.getValue();
 			                	
-			                	sequence.addFirst(seqByGroup.getKey());
-			                	
-			                	Integer[] seq = new Integer[sequence.size()];// add 1 for the group name;i.e., key
-			                    seq = sequence.toArray(seq);
-			                    //if (Arrays.toString(seq).equals("[8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]")){
-			                    //	winWidth=0;
-			                    //}
-			                  //	System.out.println(Arrays.toString(seq));
-			                    fTreeTransformer.searchAndAddSequence(seq, fEventSequences, outStream);
-			                    
+			                	LinkedList<Integer> tmp=new LinkedList<>();
+			                	tmp.addFirst(seqByGroup.getKey());
+			                	int k=0;
+			                	for (k=0; k<sequence.size();k++){
+			                		winWidth++;
+			                		tmp.add(sequence.get(k));
+			                		if (winWidth>=fMaxWin){
+			                			//Integer[] seq = new Integer[fMaxWin];
+			                			Integer[] seq = new Integer[fMaxWin+1];// add 1 for the group name;i.e., key
+				                    	seq = tmp.toArray(seq);
+				                    
+					                    //String s=Arrays.toString(seq);
+					                    //if (s.contains("14728") || s.contains("[5,")){
+					                  //	   System.out.println(s);
+					                    fTreeTransformer.searchAndAddSequence(seq, fEventSequences, outStream);
+					                   // fTreeTransformer.printSequence(outStream, fEventSequences, fNameToID,isSorted);
+					                    winWidth--;
+					                    tmp.remove(1);
+			                		}
+			                    }
+			                	/*if (k<fMaxWin-1 && k>0){
+			                		Integer[] seq = new Integer[k];// add 1 for the group name;i.e., key
+			                    	seq = tmp.toArray(seq);
+			                    	// we need to create a new data structure to store events with less than the window size or igonore them
+				                    // storing with existing structure is prone to errors
+				                    fTreeTransformer.searchAndAddSequence(seq, fEventSequences, outStream);
+			                	}*/
+			                		
+			                	tmp.clear();
+			                	sequence.clear();// clean memory
 			
 			                }
 			                commonEvntMap.clear();
 			                
 			            }
-           }
-       }
+        //   }
+      // }
         if (isLastTrace) {
             // Saving events tree in database
             outStream.addOutputEvent(Messages.SlidingWindow_UniqueMsg);
             outStream.addNewLine();
             if (fEventSequences.size() > 0) {
-                fTreeTransformer.printSequence(outStream, fEventSequences, fNameToID,true);
+                fTreeTransformer.printSequence(outStream, fEventSequences, fNameToID,isSorted);
             } else{
                 String err=NLS.bind(Messages.SlidingWindow_NoSeqLength,fMaxWin );
                 outStream.addOutputEvent(err);

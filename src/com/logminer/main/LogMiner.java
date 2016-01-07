@@ -13,7 +13,8 @@ import com.logminer.outstream.ILogOutObserver;
 import com.logminer.outstream.LogOutStream;
 import com.logminer.reader.ILogIterator;
 import com.logminer.reader.ILogTypeReader;
-import com.logminer.reader.adlogs.AdLogReader;
+import com.logminer.reader.adlogs.AdAuthLogReader;
+import com.logminer.reader.adlogs.AdRawLogReader;
 import com.logminer.reader.adlogs.TextLineTraceReader;
 import com.logminer.sequencematcher.SequenceMatching;
 
@@ -35,6 +36,7 @@ public class LogMiner {
 		@Override
 		public void updateOutput(String message) {
 			try {
+				//System.out.print(message);
 				outFile.write(message);
 				outFile.flush();
 			} catch (IOException e) {
@@ -57,8 +59,12 @@ public class LogMiner {
 		
 		
 		
-		ILogTypeReader logFile= new AdLogReader();
-		try(ILogIterator logIterator= logFile.getLogIterator( new File("/home/t909801/logs/ad-auth-log-dec4-1month.xml"))){
+	//	ILogTypeReader logFile= new AdAuthLogReader();
+		//String file="/home/t909801/logs/ad-auth-log-dec4-1month.xml";
+		ILogTypeReader logFile= new AdRawLogReader();
+		String file="/mnt/hgfs/Host/ad-raw.xml";
+		
+		try(ILogIterator logIterator= logFile.getLogIterator( new File(file))){
 		
 			OutputClass out=new OutputClass();
 			LogOutStream outPut= new LogOutStream();
@@ -67,9 +73,9 @@ public class LogMiner {
 		 	//try(ILogIterator logIterator= logFile.getLogIterator( new File("/home/t909801/logs/temp.txt"))){ 
 			        Boolean isLastTrace=true;
 					SequenceMatching seq= new SequenceMatching();
-					seq.adjustSettings(10, 0);
+					seq.adjustSettings(5, 0);
 				//	seq.train(logIterator, isLastTrace, "", null, outPut);
-					seq.minePatternsByCommonEvent(logIterator, isLastTrace, "", null, outPut);
+					seq.minePatternsByCommonEvent(logIterator, isLastTrace, "", null, outPut,true);
 					out.dispose();
 		
 		} catch (TotalADSReaderException | TotalADSGeneralException | TotalADSDBMSException | IOException ex){
