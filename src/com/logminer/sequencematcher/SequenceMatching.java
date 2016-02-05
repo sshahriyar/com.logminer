@@ -12,8 +12,10 @@ package com.logminer.sequencematcher;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.Set;
 
 import org.eclipse.osgi.util.NLS;
 
@@ -198,21 +200,22 @@ public class SequenceMatching {
     }
 
 
-    /**
-     * Mine Temporal patterns by grouping events by a common event. The common event should be the second one after : sign
-     * @param trace
-     * @param isLastTrace
-     * @param database
-     * @param dataAccessObject
-     * @param outStream
-     * @param isSorted
-     * @throws TotalADSGeneralException
-     * @throws TotalADSDBMSException
-     * @throws TotalADSReaderException
-     */
-    
-    public void minePatternsByCommonEvent(ILogIterator trace, Boolean isLastTrace, String database, 
-    		IDataAccessObject dataAccessObject, ILogOutStream outStream, Boolean isSorted) throws TotalADSGeneralException, TotalADSDBMSException, TotalADSReaderException {
+ /**
+  * Mine Temporal patterns by grouping events by a common event. The Resource should be the second one after ":" sign.
+  * @param trace
+  * @param isLastTrace
+  * @param database
+  * @param dataAccessObject
+  * @param outStream
+  * @param isSorted
+  * @param isCommonPatterns  True to mine common events without the resource name
+  * @throws TotalADSGeneralException
+  * @throws TotalADSDBMSException
+  * @throws TotalADSReaderException
+  */
+    public void minePatternsByResources(ILogIterator trace, Boolean isLastTrace, String database, 
+    		IDataAccessObject dataAccessObject, ILogOutStream outStream, Boolean isSorted, Boolean isCommonPatterns)
+    				throws TotalADSGeneralException, TotalADSDBMSException, TotalADSReaderException {
 
     	//if (trace==null || isLastTrace==null || database==null|| dataAccessObject==null|| outStream==null) {
         //    throw new TotalADSGeneralException(Messages.SlidingWindow_NoNull);
@@ -233,25 +236,19 @@ public class SequenceMatching {
 
         int winWidth = 0;
         HashMap<Integer,LinkedList<Integer>> commonEvntMap=new HashMap<>();
-        //LinkedList<Integer> newSequence = new LinkedList<>();
+        
         String events = null;
 
         while (trace.advance()) {
             events = trace.getCurrentEvent();
-            
+           
             String []event=events.split(":");
             
             
             if (event.length>1){
 			            Integer key=fNameToID.getId(event[1]);
 			            Integer val=fNameToID.getId(event[0]);
-			            System.out.println(event[1]);
-			           // if (events.contains("KanaMail@CORP.ADS") ){
-			            //	System.out.println(events + " "+key + " "+val);//5
-			            //}
-			           // if ( events.contains("T906537")){
-			           // 	System.out.println(events + " "+key + " "+val);//14728
-			           // }
+			           
 			            LinkedList<Integer> newSequence=commonEvntMap.get(key);
 			            if (newSequence!=null){
 			            	newSequence.add(val);
@@ -265,9 +262,9 @@ public class SequenceMatching {
 			          }
 	             }
 			            
-			            winWidth=fMaxWin;
+			          //  winWidth=fMaxWin;
 			
-			            if (winWidth >= fMaxWin) {
+			          //  if (winWidth >= fMaxWin) {
 			
 			                
 			                for (Map.Entry<Integer, LinkedList<Integer>> seqByGroup:commonEvntMap.entrySet()){
@@ -275,19 +272,23 @@ public class SequenceMatching {
 			                	LinkedList<Integer> sequence =seqByGroup.getValue();
 			                	
 			                	LinkedList<Integer> tmp=new LinkedList<>();
-			                	tmp.addFirst(seqByGroup.getKey());
+			                	if (!isCommonPatterns)
+			                	    tmp.addFirst(seqByGroup.getKey());
+			                	
 			                	int k=0;
 			                	for (k=0; k<sequence.size();k++){
 			                		winWidth++;
 			                		tmp.add(sequence.get(k));
 			                		if (winWidth>=fMaxWin){
-			                			//Integer[] seq = new Integer[fMaxWin];
-			                			Integer[] seq = new Integer[fMaxWin+1];// add 1 for the group name;i.e., key
-				                    	seq = tmp.toArray(seq);
-				                    
-					                    //String s=Arrays.toString(seq);
-					                    //if (s.contains("14728") || s.contains("[5,")){
-					                  //	   System.out.println(s);
+			                			Integer[] seq =null;
+			                			
+			                			if (isCommonPatterns)
+			                				 seq =new Integer[fMaxWin];
+			                			else
+			                			     seq = new Integer[fMaxWin+1];// add 1 for the group name;i.e., key
+				                    	
+			                			seq = tmp.toArray(seq);
+				                    					                   
 					                    fTreeTransformer.searchAndAddSequence(seq, fEventSequences, outStream);
 					                   // fTreeTransformer.printSequence(outStream, fEventSequences, fNameToID,isSorted);
 					                    winWidth--;
@@ -303,12 +304,12 @@ public class SequenceMatching {
 			                	}*/
 			                		
 			                	tmp.clear();
-			                	sequence.clear();// clean memory
+			                	sequence.clear();// clean memory, we don't need this any more
 			
 			                }
 			                commonEvntMap.clear();
 			                
-			            }
+			          //  }
         //   }
       // }
         if (isLastTrace) {
@@ -332,6 +333,49 @@ public class SequenceMatching {
 
     }
 
+    /**
+     * Returns the json tree for a key
+     * @return
+     */
+    public JsonObject getPatternTree(String key){
+    	Integer id= fNameToID.getId(key);
+    	Event [] events=fEventSequences.get(id);
+    	if (events==null || events.length <=0)
+    		return null;
+    	//EventString [] eventsString=new EventString[events.length];
+    //	fTreeTransformer.generateStringRepresentation(events, eventsString, fNameToID);
+    	//return fTreeTransformer.convertToJson(eventsString, key);
+    	//return fTreeTransformer.convertToJson(events, 0);
+    	EventJson eventJson=new EventJson();
+    	eventJson=fTreeTransformer.generateHierarchicalJsonObjects(events, eventJson, fNameToID);
+    	Gson gson = new Gson();
+    	return gson.toJsonTree(eventJson).getAsJsonObject();
+    }
+    
+    /**
+     * Get keys
+     * @return
+     */
+    public String[] getPatternKeys(){
+        Set<Integer> keys=fEventSequences.keySet();
+    	String []keyList=new String[keys.size()];
+        Iterator<Integer> it=keys.iterator();
+        int cnt=0;
+    	while (it.hasNext())
+    		keyList[cnt++]=fNameToID.getKey(it.next());
+    	
+    	return keyList;
+    	
+    }
+    
+    /**
+     * 
+     * @param outStream
+     * @param isSorted
+     */
+    public void printPatterns(ILogOutStream outStream, Boolean isSorted){
+    	 fTreeTransformer.printSequence(outStream, fEventSequences, fNameToID,isSorted);
+    }
     
     /*
      * (non-Javadoc)

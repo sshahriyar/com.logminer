@@ -229,16 +229,11 @@ class SequenceMatchingTree {
 
             Event[] events = nodes.getValue();
 
-            com.google.gson.Gson gson = new com.google.gson.Gson();
-
-            JsonElement jsonArray = gson.toJsonTree(events);
-            JsonObject jsonObject = new JsonObject();
-            jsonObject.addProperty(TraceCollection.KEY.toString(), nodes.getKey());
-            jsonObject.add(TraceCollection.TREE.toString(), jsonArray);
+            JsonObject jsonEvents=convertToJson(events, nodes.getKey());
 
             JsonObject jsonKey = new JsonObject();
             jsonKey.addProperty(TraceCollection.KEY.toString(), nodes.getKey());
-            dataAccessObject.insertOrUpdateUsingJSON(database, jsonKey, jsonObject, TraceCollection.COLLECTION_NAME.toString());
+            dataAccessObject.insertOrUpdateUsingJSON(database, jsonKey, jsonEvents, TraceCollection.COLLECTION_NAME.toString());
 
         }
 
@@ -263,18 +258,44 @@ class SequenceMatchingTree {
 
         Integer key = tree[0].getEvent(); // Top node is the name
 
-        com.google.gson.Gson gson = new com.google.gson.Gson();
+        JsonObject jsonEvents=convertToJson(tree, key);
+
+        JsonObject jsonKey = new JsonObject();
+        jsonKey.addProperty(TraceCollection.TREE.toString(), key);
+
+        dataAccessObject.insertOrUpdateUsingJSON(database, jsonKey, jsonEvents, collectionName);
+
+    }
+    
+    /**
+     * Converts Event array to JSON
+     * @param tree
+     * @param key
+     * @return
+     */
+    public JsonObject convertToJson(Event[] tree, Integer key){
+    	Gson gson = new Gson();
 
         JsonElement jsonArray = gson.toJsonTree(tree);
         JsonObject jsonObject = new JsonObject();
         jsonObject.addProperty(TraceCollection.KEY.toString(), key);
         jsonObject.add(TraceCollection.TREE.toString(), jsonArray);
+		return jsonObject;
+    }
+    /**
+     * Converts Event array of strings to JSON
+     * @param tree
+     * @param key
+     * @return
+     */
+    public JsonObject convertToJson(EventString[] tree, String key){
+    	Gson gson = new Gson();
 
-        JsonObject jsonKey = new JsonObject();
-        jsonKey.addProperty(TraceCollection.TREE.toString(), key);
-
-        dataAccessObject.insertOrUpdateUsingJSON(database, jsonKey, jsonObject, collectionName);
-
+        JsonElement jsonArray = gson.toJsonTree(tree);
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.addProperty(TraceCollection.KEY.toString(), key);
+        jsonObject.add(TraceCollection.TREE.toString(), jsonArray);
+		return jsonObject;
     }
 
     /**
@@ -328,12 +349,13 @@ class SequenceMatchingTree {
         
         // Printing sroted Tree
         if (isSorted=true){
-		        
+		        int count=1;
 		        for (Map.Entry<Integer,String> seq:sortSeqTree.descendingMap().entrySet()){
+		        	//outStream.addNewLine();
+		        	//outStream.addOutputEvent("Count= " + seq.getKey().toString());
 		        	outStream.addNewLine();
-		        	outStream.addOutputEvent("Count= " + seq.getKey().toString());
-		        	outStream.addNewLine();
-		        	outStream.addOutputEvent(seq.getValue());
+		        	outStream.addOutputEvent("pat"+count+ ": " +seq.getValue());
+		        	count++;
 		        }
 		        sortSeqTree.clear();
         }
@@ -374,7 +396,8 @@ class SequenceMatchingTree {
             }
             else {
                 // Just append the events
-                thePrefix = thePrefix + "\"" + nameToId.getKey(nodes[nodeCount].getEvent().intValue()) + "\" "; //$NON-NLS-1$ //$NON-NLS-2$
+               // thePrefix = thePrefix + "\"" + nameToId.getKey(nodes[nodeCount].getEvent().intValue()) + "\" "; //$NON-NLS-1$ //$NON-NLS-2$
+                thePrefix = thePrefix  + nameToId.getKey(nodes[nodeCount].getEvent().intValue()) + ", "; //$NON-NLS-1$ //$NON-NLS-2$
 
             }
 
@@ -415,8 +438,153 @@ class SequenceMatchingTree {
     }
     
     
-    
+    /**
+     * /** This function goes through the tree of events and generates the string representation of events
+     * 
+     *
+     * @param nodes
+     *            Root event
+     * @param prefix
+     *            Prefix of the event sequence
+     * @param OutStream
+     *            An object to display output
+     * @param nameToId
+     *            Name to id mapper
+     * @param sortedSeqTree
+     * 		      A tree Map to store sorted sequences           
+     */
+    public void generateStringRepresentation(Event[] nodes, EventString[] nodesString,  NameToIDMapper nameToId) {
 
+        // Boolean isPrefixPrinted=false;
+        
+        for (int nodeCount = 0; nodeCount < nodes.length; nodeCount++) {
+
+            ArrayList<Event[]> branches = nodes[nodeCount].getBranches();
+            if (nodeCount == nodes.length - 1) {
+            	
+            	if(nodesString[nodeCount]==null)
+            		nodesString[nodeCount]=new EventString();
+                
+            	nodesString[nodeCount].setEvent(Messages.SlidingWindowTree_Count + nodes[nodeCount].getEvent().toString());// the
+                // last
+                // element
+                // is
+                // the
+                // count
+                // of
+                // the
+                // sequence
+            }
+            else {
+                // Just append the events
+            	if(nodesString[nodeCount]==null)
+            		nodesString[nodeCount]=new EventString();
+                
+            	nodesString[nodeCount].setEvent(nameToId.getKey(nodes[nodeCount].getEvent().intValue())); //$NON-NLS-1$ //$NON-NLS-2$
+
+            }
+
+            if (branches != null) { // if there are branches on an event then
+                                    // keep them
+            	ArrayList<EventString[]> strBranches= new ArrayList<>();
+                for (int i = 0; i < branches.size(); i++) {
+                		Event[] evInt=branches.get(i);
+                		EventString [] evStr=new EventString[evInt.length];
+                		generateStringRepresentation(evInt,evStr , nameToId);
+                		strBranches.add(evStr);
+                }
+                nodesString[nodeCount].setBranches(strBranches);
+            } else {
+
+                // Print only when we reach a leaf of a branch
+                if (nodeCount == nodes.length - 1) {
+                  
+                	
+                		 //if (thePrefix.contains("T906537"))
+		                  	//    System.out.println(thePrefix);
+                	//	outStream.addOutputEvent(thePrefix);
+                	
+                }
+
+               
+            }
+        }
+       
+    }
+       
+    /**
+     * /** This function goes through the tree of events and generates the string representation of events
+     * 
+     *
+     * @param nodes
+     *            Root event
+     * @param prefix
+     *            Prefix of the event sequence
+     * @param OutStream
+     *            An object to display output
+     * @param nameToId
+     *            Name to id mapper
+     * @param sortedSeqTree
+     * 		      A tree Map to store sorted sequences           
+     */
+    public EventJson generateHierarchicalJsonObjects(Event[] nodes, EventJson nodesString,  NameToIDMapper nameToId) {
+
+        // Boolean isPrefixPrinted=false;
+        EventJson root=nodesString;
+        for (int nodeCount = 0; nodeCount < nodes.length; nodeCount++) {
+        	EventJson next=null;
+            ArrayList<Event[]> branches = nodes[nodeCount].getBranches();
+            int branchSize=0;
+            if (branches!=null)
+            	branchSize=branches.size();
+            
+           
+            
+            if (nodeCount == nodes.length - 1) {
+                
+            	nodesString.setEvent(Messages.SlidingWindowTree_Count + nodes[nodeCount].getEvent().toString());// the
+                // last
+                // element
+                // is
+                // the
+                // count
+                // of
+                // the
+                // sequence
+            }
+            else {
+                // Just append the events
+            	
+            	EventJson []eventJsonBranches=new EventJson[branchSize+1]; //1 for the current siblings
+                nodesString.setBranches(eventJsonBranches);
+            	
+                nodesString.setEvent(nameToId.getKey(nodes[nodeCount].getEvent().intValue())); //$NON-NLS-1$ //$NON-NLS-2$
+            	
+                EventJson []branchJsons= nodesString.getBranches(); // get the first branch to record events in the array
+            	branchJsons[0]=new EventJson();
+            	next=branchJsons[0];
+            }
+
+            if (branches != null) { // if there are branches on an event then
+            	
+            	EventJson []branchJsons= nodesString.getBranches();                   
+            	for (int i = 0; i < branches.size(); i++) {
+                		Event[] evInt=branches.get(i);
+                		branchJsons[i+1]=new EventJson();
+                		EventJson evJson=branchJsons[i+1];//first one is used above under else; that is why i+1
+                		evJson=generateHierarchicalJsonObjects(evInt,evJson , nameToId);
+                	    branchJsons[i+1]=evJson;
+                		
+                }
+                nodesString.setBranches(branchJsons);
+            } 
+            if (next!=null)
+            	nodesString=next;// move pointer ahead
+        }
+        return root;
+       
+    }
+       
     /**
      * Searches a matching sequence in the tree
      *

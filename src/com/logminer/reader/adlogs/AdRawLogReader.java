@@ -10,6 +10,12 @@
  **********************************************************************************************/
 package com.logminer.reader.adlogs;
 
+/**
+ * get data first from this splunk query (change dates for every day):
+ * index=argus source=/argus/argus/telus/2016/01/29/ad/abads016/raw.log.gz 
+| rex ".*\w{32}\s(?<date>\w{3}\s\d{2}\s\d{2}\:\d{2}\:\d{2}\s\d{4})\s+(?<eid>\d{3,4}).*Account Name:\s+(?<account>[\w-._@$]+)"| table date eid account
+ */
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;

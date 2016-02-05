@@ -27,14 +27,14 @@ import com.logminer.outstream.ILogOutStream;
  *         </p>
  *
  */
-public class LogOutStream implements ILogOutStream {
+public class LogOutConsole implements ILogOutStream {
 
     private ArrayList<ILogOutObserver> fObservers;
 
     /**
      * Constructor
      */
-    public LogOutStream() {
+    public LogOutConsole() {
         fObservers = new ArrayList<>();
     }
 
@@ -56,6 +56,7 @@ public class LogOutStream implements ILogOutStream {
     @Override
     public void addNewLine() {
         notifyObservers("\n"); //$NON-NLS-1$
+      
     }
 
     /**

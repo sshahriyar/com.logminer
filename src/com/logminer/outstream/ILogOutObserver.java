@@ -10,7 +10,7 @@
  **********************************************************************************************/
 package com.logminer.outstream;
 
-import com.logminer.outstream.LogOutStream;
+import com.logminer.outstream.LogOutConsole;
 
 /**
  * An interface that is required to be implemented by the class that displays
@@ -23,7 +23,7 @@ import com.logminer.outstream.LogOutStream;
  */
 public interface ILogOutObserver {
     /**
-     * This method gets called from the {@link LogOutStream}
+     * This method gets called from the {@link LogOutConsole}
      *
      * @param message
      *            The message to be displayed
